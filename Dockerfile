@@ -27,6 +27,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Create nonroot user with specific UID/GID to avoid conflicts
+RUN groupadd --system --gid 1000 nonroot \
+ && useradd --system --gid 1000 --uid 1000 --create-home nonroot
+
 # Copy the Python installation from the builder
 COPY --from=builder --chown=python:python /python /python
 
