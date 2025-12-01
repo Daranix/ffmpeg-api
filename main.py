@@ -1,3 +1,4 @@
+import tempfile
 from fastapi import (
     FastAPI, File, UploadFile, Form, HTTPException, BackgroundTasks
 )
@@ -26,9 +27,7 @@ This API allows you to upload, convert, cache, and manage video files using **FF
 )
 
 # Directories
-TEMP_DIR = Path("temp")
-CACHE_DIR = Path("cache")
-
+TEMP_DIR = Path(tempfile.gettempdir())
 
 # -----------------------------
 # Models for Swagger
@@ -51,15 +50,6 @@ class HealthResponse(BaseModel):
 class ErrorResponse(BaseModel):
     error: str
     stderr: Optional[str] = None
-
-
-# -----------------------------
-# Initialization
-# -----------------------------
-@app.on_event("startup")
-async def startup_event():
-    TEMP_DIR.mkdir(parents=True, exist_ok=True)
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # -----------------------------
@@ -109,7 +99,7 @@ async def upload_video(file: UploadFile = File(..., description="Video file to u
     filename = file.filename or "video.dat"
     ext = Path(filename).suffix or ".mp4"
 
-    file_path = CACHE_DIR / f"{video_hash}{ext}"
+    file_path = TEMP_DIR / f"{video_hash}{ext}"
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(file_path, "wb") as f:
@@ -118,7 +108,7 @@ async def upload_video(file: UploadFile = File(..., description="Video file to u
     return UploadResponse(
         hash=video_hash,
         ext=ext,
-        path=str(file_path.relative_to(CACHE_DIR))
+        path=str(file_path.relative_to(TEMP_DIR))
     )
 
 
@@ -221,7 +211,7 @@ async def convert_from_hash(
 
     This avoids uploading the same file repeatedly and speeds up conversion workflows.
     """
-    cached_files = list(CACHE_DIR.glob(f"{video_hash}.*"))
+    cached_files = list(TEMP_DIR.glob(f"{video_hash}.*"))
     if not cached_files:
         raise HTTPException(status_code=404, detail="Cached video not found")
 
@@ -271,7 +261,7 @@ async def delete_video(video_hash: str):
     """
     Remove all cached files that match a particular SHA-256 hash.
     """
-    files = list(CACHE_DIR.glob(f"{video_hash}.*"))
+    files = list(TEMP_DIR.glob(f"{video_hash}.*"))
     if not files:
         raise HTTPException(status_code=404, detail="Video cache not found")
 
